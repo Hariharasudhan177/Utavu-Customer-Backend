@@ -1,0 +1,6 @@
+@UtavuCustomerBackend_HostAddress = http://localhost:5004
+
+GET {{UtavuCustomerBackend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
