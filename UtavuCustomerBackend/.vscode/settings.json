@@ -1,0 +1,5 @@
+{
+    "appService.preDeployTask": "publish-release",
+    "appService.deploySubpath": "bin/Release/net8.0/publish",
+    "appService.defaultWebAppToDeploy": "/subscriptions/4a5ee9f4-6763-4e55-858f-13f993f9cb9a/resourceGroups/utavurg/providers/Microsoft.Web/sites/utavucbwa"
+}
