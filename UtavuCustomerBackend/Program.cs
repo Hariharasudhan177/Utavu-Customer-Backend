@@ -51,16 +51,14 @@ var app = builder.Build();
 // Enable CORS
 app.UseCors("AllowAllOrigins");
 
-//if (app.Environment.IsDevelopment())
-//{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-//}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseAuthentication(); // Enable authentication
 app.UseAuthorization(); // Enable authorization
 
+// Endpoint for signing up a user
 app.MapPost("/signup", async (SignUpRequest request, AppDbContext dbContext) =>
 {
     var payload = await VerifyIdToken(request.IdToken); // Verify the ID token and extract the payload
@@ -90,6 +88,62 @@ app.MapPost("/signup", async (SignUpRequest request, AppDbContext dbContext) =>
     });
 });
 
+app.MapGet("/profile", async (ClaimsPrincipal user, AppDbContext dbContext) =>
+{
+    var email = user.FindFirst(ClaimTypes.Name)?.Value;
+
+    if (email == null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var userProfile = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+    if (userProfile == null)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(new
+    {
+        Email = userProfile.Email,
+        Name = userProfile.Name,
+        Address = userProfile.Address ?? "", // Handle null address
+        JobType = userProfile.JobType ?? "", // Handle null job type
+        GeneralAvailabilityStartTime = userProfile.GeneralAvailabilityStartTime?.ToString(@"hh\:mm") ?? "", // Handle null availability
+        GeneralAvailabilityEndTime = userProfile.GeneralAvailabilityEndTime?.ToString(@"hh\:mm") ?? "" // Handle null availability
+    });
+}).RequireAuthorization();
+
+app.MapPut("/profile", async (ClaimsPrincipal user, AppDbContext dbContext, UserProfileUpdateModel updatedProfile) =>
+{
+    var email = user.FindFirst(ClaimTypes.Name)?.Value;
+
+    if (email == null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var userProfile = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+    if (userProfile == null)
+    {
+        return Results.NotFound();
+    }
+
+    // Update the user's profile details with the new data
+    userProfile.Address = updatedProfile.Address ?? userProfile.Address;
+    userProfile.JobType = updatedProfile.JobType ?? userProfile.JobType;
+    userProfile.GeneralAvailabilityStartTime = updatedProfile.GeneralAvailabilityStartTime ?? userProfile.GeneralAvailabilityStartTime;
+    userProfile.GeneralAvailabilityEndTime = updatedProfile.GeneralAvailabilityEndTime ?? userProfile.GeneralAvailabilityEndTime;
+
+    // Save changes to the database
+    await dbContext.SaveChangesAsync();
+
+    return Results.Ok(new
+    {
+        Message = "Profile updated successfully"
+    });
+}).RequireAuthorization();
+
 app.Run();
 
 // JWT generation method
@@ -109,6 +163,7 @@ string GenerateJwtToken(string email)
     return new JwtSecurityTokenHandler().WriteToken(token);
 }
 
+// Method to verify the Google ID token
 async Task<GoogleJsonWebSignature.Payload> VerifyIdToken(string idToken)
 {
     var settings = new GoogleJsonWebSignature.ValidationSettings()
@@ -122,4 +177,12 @@ async Task<GoogleJsonWebSignature.Payload> VerifyIdToken(string idToken)
 public class SignUpRequest
 {
     public string IdToken { get; set; } = string.Empty; // User's ID token from Google
+}
+
+public class UserProfileUpdateModel
+{
+    public string? Address { get; set; } // Nullable to allow partial updates
+    public string? JobType { get; set; } // Nullable to allow partial updates
+    public TimeSpan? GeneralAvailabilityStartTime { get; set; }  // Nullable to allow partial updates
+    public TimeSpan? GeneralAvailabilityEndTime { get; set; } // Nullable to allow partial updates
 }
