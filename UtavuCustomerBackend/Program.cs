@@ -156,7 +156,7 @@ string GenerateJwtToken(string email)
         issuer: builder.Configuration["Jwt:Issuer"],
         audience: builder.Configuration["Jwt:Audience"],
         claims: new[] { new Claim(ClaimTypes.Name, email) }, // Add claims as necessary
-        expires: DateTime.Now.AddMinutes(30),
+        expires: DateTime.Now.AddDays(7),
         signingCredentials: creds
     );
 
